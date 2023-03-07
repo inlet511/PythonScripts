@@ -63,19 +63,3 @@ class DuplicateCleaner():
 
                     # key 是文件长度, samefiles是相同文件的列表
                     yield key, samefiles
-
-                    # print("[File Size:{filesize} ] Same files:-------------------".format(filesize=key))
-                    # for i in samefiles:
-                    #     print(i)
-
-
-#
-#
-# if __name__ == '__main__':
-#     parser = argparse.ArgumentParser()
-#     parser.add_argument('--folder', '-f', help='要查找的目录', required=True)
-#     args = parser.parse_args()
-#     find(args.folder)
-
-
-

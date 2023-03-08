@@ -5,9 +5,10 @@ import multiprocessing as mp
 import os
 from enum import Enum
 from downloader_thread import DownloaderThread
-
+from custom_list_item import customQListWidgetItem
 
 import logging
+
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
@@ -17,42 +18,37 @@ class InfoLevel(Enum):
     WARNING = 2
     ERROR = 3
 
+
 class Ui_MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.resize(1280, 720)
+        self.completed_count = 0
+        self.thread = None
 
+        self.resize(1280, 720)
         self.progressBar = None
         self.btn_download = None
         self.btn_clear_tasks = None
-        self.horizontalLayout = None
         self.cb_override = None
         self.cb_gen_subtitle = None
         self.cb_subtitle = None
         self.spin_threads = None
         self.label = None
-        self.horizontalLayout_4 = None
-        self.horizontalLayout_3 = None
         self.le_save_folder = None
         self.btn_select_folder = None
-        self.horizontalLayout_2 = None
-        self.groupBox_3 = None
         self.lw_urls = None
         self.verticalLayout_2 = None
-        self.groupBox_2 = None
         self.btn_add_url = None
         self.le_url = None
-        self.horizontalLayout_6 = None
-        self.groupBox = None
 
 
         # 初始化UI
         self.setupUi()
 
-        #设置最大线程数
+        # 设置最大线程数
         self.setup_cores()
 
-        #关联信号
+        # 关联信号
         self.setup_signals()
 
     def setupUi(self):
@@ -65,83 +61,92 @@ class Ui_MainWindow(QMainWindow):
         self.setCentralWidget(widget)
         widget.setLayout(verticalLayout)
 
-
         # 添加任务行
-        self.groupBox = QtWidgets.QGroupBox()
-        self.horizontalLayout_6 = QtWidgets.QHBoxLayout(self.groupBox)
-        self.le_url = QtWidgets.QLineEdit(self.groupBox)
-        self.horizontalLayout_6.addWidget(self.le_url)
-        self.btn_add_url = QtWidgets.QPushButton(self.groupBox)
-        self.horizontalLayout_6.addWidget(self.btn_add_url)
-        verticalLayout.addWidget(self.groupBox)
+        groupBox = QtWidgets.QGroupBox()
+        groupBox.setTitle("视频地址")
+        horizontalLayout_6 = QtWidgets.QHBoxLayout(groupBox)
+        self.le_url = QtWidgets.QLineEdit(groupBox)
+        horizontalLayout_6.addWidget(self.le_url)
+        self.btn_add_url = QtWidgets.QPushButton(groupBox)
+        horizontalLayout_6.addWidget(self.btn_add_url)
+        verticalLayout.addWidget(groupBox)
 
         # 任务列表行
-        self.groupBox_2 = QtWidgets.QGroupBox()
-        self.verticalLayout_2 = QtWidgets.QVBoxLayout(self.groupBox_2)
-        self.lw_urls = QtWidgets.QListWidget(self.groupBox_2)
+        groupBox_2 = QtWidgets.QGroupBox()
+        groupBox_2.setTitle("任务列表")
+        self.verticalLayout_2 = QtWidgets.QVBoxLayout(groupBox_2)
+        self.lw_urls = QtWidgets.QListWidget(groupBox_2)
         self.lw_urls.setEditTriggers(QtWidgets.QAbstractItemView.AllEditTriggers)
         self.verticalLayout_2.addWidget(self.lw_urls)
-        verticalLayout.addWidget(self.groupBox_2)
+        verticalLayout.addWidget(groupBox_2)
 
         # 临时测试用
-        self.lw_urls.addItem(QListWidgetItem('https://www.youtube.com/watch?v=_E8rBsPi0Os'))
-        self.lw_urls.addItem(QListWidgetItem('https://www.youtube.com/watch?v=AM8D4j9KoaU'))
-        self.lw_urls.addItem(QListWidgetItem('https://www.youtube.com/watch?v=x6XgjIHBVyY'))
-        self.lw_urls.addItem(QListWidgetItem('https://www.youtube.com/watch?v=AlSCx-4d51U'))
-        self.lw_urls.addItem(QListWidgetItem('https://www.youtube.com/watch?v=YOlkttT9kpk'))
-        self.lw_urls.addItem(QListWidgetItem('https://www.youtube.com/watch?v=ABd5SmatQi4'))
-        self.lw_urls.addItem(QListWidgetItem('https://www.youtube.com/watch?v=eb426KbUc7I'))
+        progressItem1 = customQListWidgetItem('https://www.youtube.com/shorts/ThNT2hwiRO4')
+        progressItem2 = customQListWidgetItem('https://www.youtube.com/shorts/lJEPiyAIrYY')
+        progressItem3 = customQListWidgetItem('https://www.youtube.com/shorts/Ukx2YpGY674')
+
+        self.lw_urls.addItem(progressItem1)
+        self.lw_urls.addItem(progressItem2)
+        self.lw_urls.addItem(progressItem3)
+
+
+        self.lw_urls.setItemWidget(progressItem1, progressItem1.widget)
+        self.lw_urls.setItemWidget(progressItem2, progressItem2.widget)
+        self.lw_urls.setItemWidget(progressItem3, progressItem3.widget)
+
+
 
         # 保存位置行
-        self.groupBox_3 = QtWidgets.QGroupBox()
-        self.horizontalLayout_2 = QtWidgets.QHBoxLayout(self.groupBox_3)
-        self.btn_select_folder = QtWidgets.QPushButton(self.groupBox_3)
-        self.horizontalLayout_2.addWidget(self.btn_select_folder)
-        self.le_save_folder = QtWidgets.QLineEdit(self.groupBox_3)
-        self.horizontalLayout_2.addWidget(self.le_save_folder)
-        verticalLayout.addWidget(self.groupBox_3)
+        groupBox_3 = QtWidgets.QGroupBox()
+        groupBox_3.setTitle("保存路径")
+        horizontalLayout_2 = QtWidgets.QHBoxLayout(groupBox_3)
+        self.btn_select_folder = QtWidgets.QPushButton(groupBox_3)
+        horizontalLayout_2.addWidget(self.btn_select_folder)
+        self.le_save_folder = QtWidgets.QLineEdit(groupBox_3)
+        horizontalLayout_2.addWidget(self.le_save_folder)
+        verticalLayout.addWidget(groupBox_3)
 
         # 设置行
-        self.horizontalLayout_3 = QtWidgets.QHBoxLayout()
-        self.horizontalLayout_4 = QtWidgets.QHBoxLayout()
+        horizontalLayout_3 = QtWidgets.QHBoxLayout()
+        horizontalLayout_4 = QtWidgets.QHBoxLayout()
         spacerItem = QtWidgets.QSpacerItem(40, 20)
-        self.horizontalLayout_4.addItem(spacerItem)
+        horizontalLayout_4.addItem(spacerItem)
         self.label = QtWidgets.QLabel()
         self.label.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignTrailing | QtCore.Qt.AlignVCenter)
-        self.horizontalLayout_4.addWidget(self.label)
+        horizontalLayout_4.addWidget(self.label)
         self.spin_threads = QtWidgets.QSpinBox()
-        self.horizontalLayout_4.addWidget(self.spin_threads)
-        self.horizontalLayout_4.setStretch(1, 1)
-        self.horizontalLayout_4.setStretch(2, 5)
-        self.horizontalLayout_3.addLayout(self.horizontalLayout_4)
+        horizontalLayout_4.addWidget(self.spin_threads)
+        horizontalLayout_4.setStretch(1, 1)
+        horizontalLayout_4.setStretch(2, 5)
+        horizontalLayout_3.addLayout(horizontalLayout_4)
         spacerItem1 = QtWidgets.QSpacerItem(40, 20)
-        self.horizontalLayout_3.addItem(spacerItem1)
+        horizontalLayout_3.addItem(spacerItem1)
         self.cb_subtitle = QtWidgets.QCheckBox()
         self.cb_subtitle.setChecked(True)
-        self.horizontalLayout_3.addWidget(self.cb_subtitle)
+        horizontalLayout_3.addWidget(self.cb_subtitle)
         spacerItem2 = QtWidgets.QSpacerItem(40, 20)
-        self.horizontalLayout_3.addItem(spacerItem2)
+        horizontalLayout_3.addItem(spacerItem2)
         self.cb_gen_subtitle = QtWidgets.QCheckBox()
-        self.horizontalLayout_3.addWidget(self.cb_gen_subtitle)
+        horizontalLayout_3.addWidget(self.cb_gen_subtitle)
         spacerItem3 = QtWidgets.QSpacerItem(40, 20)
-        self.horizontalLayout_3.addItem(spacerItem3)
+        horizontalLayout_3.addItem(spacerItem3)
         self.cb_override = QtWidgets.QCheckBox()
         self.cb_override.setChecked(True)
-        self.horizontalLayout_3.addWidget(self.cb_override)
+        horizontalLayout_3.addWidget(self.cb_override)
         spacerItem4 = QtWidgets.QSpacerItem(40, 20)
-        self.horizontalLayout_3.addItem(spacerItem4)
-        verticalLayout.addLayout(self.horizontalLayout_3)
+        horizontalLayout_3.addItem(spacerItem4)
+        verticalLayout.addLayout(horizontalLayout_3)
 
         # 按钮行
-        self.horizontalLayout = QtWidgets.QHBoxLayout()
+        horizontalLayout = QtWidgets.QHBoxLayout()
         spacerItem5 = QtWidgets.QSpacerItem(40, 20)
-        self.horizontalLayout.addItem(spacerItem5)
+        horizontalLayout.addItem(spacerItem5)
         # 情况任务按钮
         self.btn_clear_tasks = QtWidgets.QPushButton()
         self.btn_clear_tasks.setMinimumSize(QtCore.QSize(200, 40))
-        self.horizontalLayout.addWidget(self.btn_clear_tasks)
+        horizontalLayout.addWidget(self.btn_clear_tasks)
         spacerItem6 = QtWidgets.QSpacerItem(40, 20)
-        self.horizontalLayout.addItem(spacerItem6)
+        horizontalLayout.addItem(spacerItem6)
         # 下载按钮
         self.btn_download = QtWidgets.QPushButton()
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Fixed)
@@ -150,10 +155,10 @@ class Ui_MainWindow(QMainWindow):
         sizePolicy.setHeightForWidth(self.btn_download.sizePolicy().hasHeightForWidth())
         self.btn_download.setSizePolicy(sizePolicy)
         self.btn_download.setMinimumSize(QtCore.QSize(200, 40))
-        self.horizontalLayout.addWidget(self.btn_download)
+        horizontalLayout.addWidget(self.btn_download)
         spacerItem7 = QtWidgets.QSpacerItem(40, 20)
-        self.horizontalLayout.addItem(spacerItem7)
-        verticalLayout.addLayout(self.horizontalLayout)
+        horizontalLayout.addItem(spacerItem7)
+        verticalLayout.addLayout(horizontalLayout)
 
         # 进度条
         self.progressBar = QtWidgets.QProgressBar()
@@ -165,13 +170,9 @@ class Ui_MainWindow(QMainWindow):
 
         self.retranslateUi()
 
-
     def retranslateUi(self):
         self.setWindowTitle("Youtube下载器")
-        self.groupBox.setTitle("视频地址")
         self.btn_add_url.setText("添加地址")
-        self.groupBox_2.setTitle("任务列表")
-        self.groupBox_3.setTitle("保存路径")
         self.btn_select_folder.setText("选择")
         self.le_save_folder.setText("D:/")
         self.label.setText("使用线程数量 :")
@@ -219,15 +220,53 @@ class Ui_MainWindow(QMainWindow):
         self.statusBar().setStyleSheet(stylesheet)
         self.statusBar().showMessage(txt, timespan)
 
-    def update_progress(self,progress):
+    def update_progress(self, progress):
         int_val = int(round(progress))
-        self.progressBar.setValue(int_val)
+        item = self.lw_urls.item(self.completed_count)
+        item.set_progress(int_val)
+        # self.progressBar.setValue(int_val)
 
-    def download_finished(self):
+    def completed_one(self):
+        self.completed_count += 1
+        print('Finished Downloading {}'.format(self.completed_count))
+
+    def freeze_ui(self):
+        self.btn_download.setEnabled(False)
+        self.btn_add_url.setEnabled(False)
+        self.btn_clear_tasks.setEnabled(False)
+        self.btn_select_folder.setEnabled(False)
+        self.spin_threads.setEnabled(False)
+        self.cb_gen_subtitle.setEnabled(False)
+        self.cb_subtitle.setEnabled(False)
+        self.cb_override.setEnabled(False)
+
+
+    def unfreeze_ui(self):
+        self.btn_download.setEnabled(True)
+        self.btn_add_url.setEnabled(True)
+        self.btn_clear_tasks.setEnabled(True)
+        self.btn_select_folder.setEnabled(True)
+        self.spin_threads.setEnabled(True)
+        self.cb_gen_subtitle.setEnabled(True)
+        self.cb_subtitle.setEnabled(True)
+        self.cb_override.setEnabled(True)
+
+    def cleanup(self):
+        """
+        全部下载任务完成以后的清理工作
+        :return:
+        """
+        self.completed_count = 0
+        self.unfreeze_ui()
+
+
+    def tasks_finished(self):
         self.status_message(InfoLevel.INFO, "下载完成", 0)
         self.progressBar.hide()
+        self.cleanup()
 
     def start_download(self):
+        self.freeze_ui()
         self.progressBar.show()
         self.status_message(InfoLevel.INFO, "下载中", 0)
 
@@ -241,18 +280,20 @@ class Ui_MainWindow(QMainWindow):
             return
 
         for i in range(self.lw_urls.count()):
-            url_list.append(self.lw_urls.item(i).text())
+            text = self.lw_urls.item(i).text()
+            url_list.append(text)
 
-        logger.info('获取core_count')
+        print("total urls: {}".format(len(url_list)))
+
         cores = self.spin_threads.value()
 
-        logger.info('创建线程')
-        thread = DownloaderThread(url_list, save_folder, cores)
+        self.thread = DownloaderThread(url_list, save_folder, cores)
+        self.thread.progressChanged.connect(self.update_progress)
+        self.thread.finishedOne.connect(self.completed_one)
+        self.thread.finished.connect(self.tasks_finished)
 
-        thread.progressChanged.connect(self.update_progress)
-        thread.finished.connect(self.download_finished)
-        thread.start()
-        logger.info('开启线程')
+        self.thread.start()
+
 
     def setup_signals(self):
         self.btn_select_folder.clicked.connect(self.select_folder_clicked)

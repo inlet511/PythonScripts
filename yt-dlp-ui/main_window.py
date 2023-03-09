@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
 from PyQt5 import QtCore, QtWidgets
-from PyQt5.QtWidgets import QMainWindow, QListWidgetItem, QFileDialog, QListWidget, QWidget, QTableWidget, \
-    QTableWidgetItem, QProgressBar, QGridLayout, QHeaderView
+from PyQt5.QtCore import pyqtSignal
+from PyQt5.QtWidgets import QMainWindow, QFileDialog, QWidget, QTableWidget, \
+    QTableWidgetItem, QProgressBar, QGridLayout
 import multiprocessing as mp
 import os
 from enum import Enum
 from downloader_thread import DownloaderThread, RequestInfoThread
-from functools import partial
-
+from request_info_buffer import RequestInfoBuffer
 
 import logging
 
@@ -20,16 +20,39 @@ class InfoLevel(Enum):
     WARNING = 2
     ERROR = 3
 
+
+
 class Ui_MainWindow(QMainWindow):
+
+    exit_signal = pyqtSignal()
     def __init__(self):
         super().__init__()
-        self.group_task_table = None
-        self.task_tbl = None
-        self.completed_count = 0
-        self.download_thread = None
-        self.request_info_threads = []
 
-        self.resize(1280, 720)
+        # 任务列表Group容器
+        self.group_task_table = None
+        # 任务列表
+        self.task_tbl = None
+
+        # 已完成数量
+        self.completed_count = 0
+
+        # 下载线程
+        self.download_thread = None
+
+        # 待获取信息列表
+        self.request_info_buffer = RequestInfoBuffer()
+        # 获取信息线程
+        self.request_info_thread = None
+
+        # 启动获取信息线程
+        self.request_info_thread = RequestInfoThread(self.request_info_buffer)
+        self.request_info_thread.receivedInfo.connect(self.cb_fill_title_size)
+        self.exit_signal.connect(self.request_info_thread.stop)
+        self.request_info_thread.start()
+
+
+
+        self.resize(1280, 800)
         self.btn_download = None
         self.btn_clear_tasks = None
         self.cb_override = None
@@ -54,35 +77,40 @@ class Ui_MainWindow(QMainWindow):
         self.setup_signals()
 
 
+    def closeEvent(self,event):
+        self.exit_signal.emit()
+        event.accept()
+
     def set_table_widths(self):
         """
         分配表格各列的宽度
         :return:
         """
-        self.task_tbl.setColumnWidth(1, 150)
-        self.task_tbl.horizontalHeader().setSectionResizeMode(1, QHeaderView.Fixed)
+        col2_width = 200
+
+        # group 内容区的总宽度
+        total_width = self.group_task_table.contentsRect().width()
+
+        self.task_tbl.setColumnWidth(1, col2_width)
+        self.task_tbl.setStyleSheet('QTableView { border: none; padding: 0px; }')
 
         # Get the total width of the table
-        total_width = self.group_task_table.size().width() - self.task_tbl.columnWidth(1)
+        remain_width = total_width - col2_width
 
-        # Set the width of column 1 to be 1/6 of the remaining width
-        col1_width = total_width // 3
-        self.task_tbl.horizontalHeader().resizeSection(0, col1_width)
+        # column 1 width
+        col1_width = remain_width // 3
+        self.task_tbl.setColumnWidth(0, col1_width)
 
-        # Set the width of column 3 to be 2/6 of the remaining width
-        col3_width = total_width // 3
-        self.task_tbl.horizontalHeader().resizeSection(2, col3_width)
+        # column 3 width
+        col3_width = remain_width // 3
+        self.task_tbl.setColumnWidth(2, col3_width)
 
-        # Set the width of column 4 to be 3/6 of the remaining width
-        self.task_tbl.horizontalHeader().resizeSection(3, total_width-col1_width-col3_width)
-
-
+        # the last column
+        self.task_tbl.horizontalHeader().setStretchLastSection(True)
 
     def resizeEvent(self, event):
-
-        self.set_table_widths()
         super().resizeEvent(event)
-
+        self.set_table_widths()
 
     def setupUi(self):
 
@@ -108,19 +136,16 @@ class Ui_MainWindow(QMainWindow):
 
         # 任务列表
         self.group_task_table = QtWidgets.QGroupBox()
+        self.group_task_table.setContentsMargins(0, 0, 0, 0)
         self.group_task_table.setTitle("任务列表")
         # 任务表格
         self.task_tbl = QTableWidget(self.group_task_table)
         self.task_tbl.setColumnCount(4)
         self.task_tbl.setHorizontalHeaderLabels(["标题", "大小", "地址", "下载进度"])
 
-        # 设置表格宽度
-        self.set_table_widths()
-
         # 内部布局，添加表格
-
         task_layout = QGridLayout()
-        task_layout.addWidget(self.task_tbl,0,0)
+        task_layout.addWidget(self.task_tbl, 0, 0)
         self.group_task_table.setLayout(task_layout)
 
         main_layout.addWidget(self.group_task_table)
@@ -227,13 +252,11 @@ class Ui_MainWindow(QMainWindow):
                 return True
         return False
 
-
-    def cb_fill_title_size(self, data:dict, rowNumber:int):
+    def cb_fill_title_size(self, data: dict, rowNumber: int):
         self.task_tbl.item(rowNumber, 0).setText(data.get('title'))
         self.task_tbl.item(rowNumber, 1).setText(data.get('filesize'))
 
     def add_task(self, url):
-        # TODO 清理request_thread
         rowPos = self.task_tbl.rowCount()
         self.task_tbl.insertRow(rowPos)
         self.task_tbl.setItem(rowPos, 0, QTableWidgetItem())
@@ -241,11 +264,7 @@ class Ui_MainWindow(QMainWindow):
         self.task_tbl.setItem(rowPos, 2, QTableWidgetItem(url))
         self.task_tbl.setCellWidget(rowPos, 3, QProgressBar())
 
-        request_thread = RequestInfoThread(url)
-        self.request_info_threads.append(request_thread)
-        request_thread.receivedInfo.connect(partial(self.cb_fill_title_size, rowNumber=rowPos))
-        request_thread.start()
-
+        self.request_info_buffer.put({'row': rowPos, 'url': url})
 
     def add_task_check(self):
         url = self.le_url.text()
@@ -321,12 +340,6 @@ class Ui_MainWindow(QMainWindow):
             logger.warning('指定的路径{}不存在'.format(save_folder))
             self.status_message(InfoLevel.ERROR, "指定的保存路径不存在", 2000)
             return
-
-        for i in range(self.lw_urls.count()):
-            text = self.lw_urls.item(i).text()
-            url_list.append(text)
-
-        print("total urls: {}".format(len(url_list)))
 
         cores = self.spin_threads.value()
 

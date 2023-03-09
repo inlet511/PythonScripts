@@ -37,24 +37,34 @@ class DownloaderThread(QThread):
 
 class RequestInfoThread(QThread):
 
-    receivedInfo = pyqtSignal(dict)
+    # 信号第一个参数是字典类型，第二个参数是整型，表示行数
+    receivedInfo = pyqtSignal(dict, int)
 
-    def __init__(self, url):
+    def __init__(self, in_buffer):
         super().__init__()
-        self.url = url
+        self.buffer = in_buffer
+        self.shouldExit = False
+
+    def stop(self):
+        self.shouldExit = True
+
     def run(self):
         ydl_opts = {}
         try:
             with YoutubeDL(ydl_opts) as ydl:
-                info = ydl.extract_info(self.url, download=False)
-                info = ydl.sanitize_info(info)
-                if info is None:
-                    print("获取信息失败")
-                else:
-                    size_mb = info.get('filesize_approx')/1048576
-                    size_str = '{:.2f} MB'.format(size_mb)
-                    info_dict = {'title': info.get("title"),'filesize': size_str}
-                    self.receivedInfo.emit(info_dict)
+                while not self.shouldExit: # 始终循环
+                    # 下面这个get()可能因为队列为空而阻塞，这是设计目的
+                    item_info = self.buffer.get()
+                    info = ydl.extract_info(item_info.get('url'), download=False)
+                    info = ydl.sanitize_info(info)
+                    if info is None:
+                        print("获取信息失败")
+                    else:
+                        size_mb = info.get('filesize_approx')/1048576
+                        size_str = '{:.2f} MB'.format(size_mb)
+                        info_dict = {'title': info.get("title"),'filesize': size_str}
+
+                        self.receivedInfo.emit(info_dict, item_info.get('row'))
         except Exception as ex:
             print('获取视频信息时发生错误. {}'.format(ex))
 

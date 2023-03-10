@@ -145,10 +145,6 @@ class Ui_MainWindow(QMainWindow):
 
         main_layout.addWidget(self.group_task_table)
 
-        # 临时测试用
-        self.add_task(url='https://www.youtube.com/shorts/ThNT2hwiRO4')
-        self.add_task(url='https://www.youtube.com/shorts/lJEPiyAIrYY')
-        self.add_task(url='https://www.youtube.com/shorts/lFYfM7Ows0A')
 
         # 保存位置行
         groupBox_3 = QtWidgets.QGroupBox()
@@ -241,15 +237,17 @@ class Ui_MainWindow(QMainWindow):
         if new_folder != "" and os.path.exists(new_folder):
             self.le_save_folder.setText(new_folder)
 
-    def _url_in_list(table_widget: QTableWidget, url):
-        for i in range(table_widget.rowCount()):
-            if table_widget.item(i, 2) == url:
-                return True
+    def url_in_list(self, url):
+        if url in self.task_list.keys():
+            return True
         return False
 
     def cb_fill_title_size(self, data: dict, rowNumber: int):
-        self.task_tbl.item(rowNumber, 0).setText(data.get('title'))
-        self.task_tbl.item(rowNumber, 1).setText(data.get('filesize'))
+        try:
+            self.task_tbl.item(rowNumber, 0).setText(data.get('title'))
+            self.task_tbl.item(rowNumber, 1).setText(data.get('filesize'))
+        except Exception as e:
+            print(e)
 
     def add_task(self, url):
         rowPos = self.task_tbl.rowCount()
@@ -268,13 +266,14 @@ class Ui_MainWindow(QMainWindow):
     def add_task_check(self):
         url = self.le_url.text()
         if url:
-            if self._url_in_list(self.task_tbl, url):
+            if self.url_in_list(url):
                 self.status_message(InfoLevel.WARNING, "  地址已经存在于列表中", 2000)
             else:
                 self.add_task(url)
 
     def clear_tasks(self):
         self.task_tbl.clear()
+        self.task_tbl.setRowCount(0)
         self.task_list.clear()
 
     def status_message(self, level: InfoLevel, txt: str, timespan: int):
@@ -334,6 +333,7 @@ class Ui_MainWindow(QMainWindow):
         if not os.path.exists(save_folder):
             logger.warning('指定的路径{}不存在'.format(save_folder))
             self.status_message(InfoLevel.ERROR, "指定的保存路径不存在", 2000)
+            self.unfreeze_ui()
             return
 
         for i in range(self.task_tbl.rowCount()):

@@ -6,9 +6,10 @@ from yt_dlp import YoutubeDL
 import time
 
 class DownloaderThread(QThread):
-    # 信号
-    progressChanged = pyqtSignal(float)
-    finishedOne = pyqtSignal()
+    # 信号****************
+    # 进度改变, 第一个值是进度，第二个值是url
+    progressChanged = pyqtSignal(float,str)
+
 
     def __init__(self, urls, save_path, cores):
         super().__init__()
@@ -24,6 +25,7 @@ class DownloaderThread(QThread):
                 'concurrent-fragments': self.cores
             }
             with YoutubeDL(ydl_opts) as ydl:
+                print("downloading urls:{}".format(self.urls))
                 ydl.download(self.urls)
         except Exception as e:
             logging.WARNING("下载时出现错误", e)
@@ -31,9 +33,10 @@ class DownloaderThread(QThread):
     def progress_hook(self, d):
         if d['status'] == 'downloading':
             progress = d['_percent_str']
-            self.progressChanged.emit(float(progress[:-1]))
+            self.progressChanged.emit(float(progress[:-1]), d['info_dict']['original_url'])
         elif d['status'] == 'finished':
-            self.finishedOne.emit()
+            # 一个任务可能多次出发finished, 这里传出事件无意义
+            pass
 
 class RequestInfoThread(QThread):
 

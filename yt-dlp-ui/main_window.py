@@ -21,20 +21,18 @@ class InfoLevel(Enum):
     ERROR = 3
 
 
-
 class Ui_MainWindow(QMainWindow):
-
     exit_signal = pyqtSignal()
+
     def __init__(self):
         super().__init__()
 
         # 任务列表Group容器
         self.group_task_table = None
-        # 任务列表
+        # 任务表格
         self.task_tbl = None
-
-        # 已完成数量
-        self.completed_count = 0
+        # 任务列表，记录url和索引的对应关系
+        self.task_list = {}
 
         # 下载线程
         self.download_thread = None
@@ -49,8 +47,6 @@ class Ui_MainWindow(QMainWindow):
         self.request_info_thread.receivedInfo.connect(self.cb_fill_title_size)
         self.exit_signal.connect(self.request_info_thread.stop)
         self.request_info_thread.start()
-
-
 
         self.resize(1280, 800)
         self.btn_download = None
@@ -76,8 +72,7 @@ class Ui_MainWindow(QMainWindow):
         # 关联信号
         self.setup_signals()
 
-
-    def closeEvent(self,event):
+    def closeEvent(self, event):
         self.exit_signal.emit()
         event.accept()
 
@@ -153,7 +148,7 @@ class Ui_MainWindow(QMainWindow):
         # 临时测试用
         self.add_task(url='https://www.youtube.com/shorts/ThNT2hwiRO4')
         self.add_task(url='https://www.youtube.com/shorts/lJEPiyAIrYY')
-        self.add_task(url='https://www.youtube.com/shorts/Ukx2YpGY674')
+        self.add_task(url='https://www.youtube.com/shorts/lFYfM7Ows0A')
 
         # 保存位置行
         groupBox_3 = QtWidgets.QGroupBox()
@@ -228,7 +223,7 @@ class Ui_MainWindow(QMainWindow):
         self.setWindowTitle("Youtube下载器")
         self.btn_add_url.setText("添加地址")
         self.btn_select_folder.setText("选择")
-        self.le_save_folder.setText("D:/")
+        self.le_save_folder.setText("./")
         self.label.setText("使用线程数量 :")
         self.cb_subtitle.setText("下载字幕")
         self.cb_gen_subtitle.setText("下载生成字幕")
@@ -264,6 +259,10 @@ class Ui_MainWindow(QMainWindow):
         self.task_tbl.setItem(rowPos, 2, QTableWidgetItem(url))
         self.task_tbl.setCellWidget(rowPos, 3, QProgressBar())
 
+        # 注册到任务列表
+        self.task_list.update({url: rowPos})
+
+        # 注册到队列中，获取视频信息
         self.request_info_buffer.put({'row': rowPos, 'url': url})
 
     def add_task_check(self):
@@ -276,6 +275,7 @@ class Ui_MainWindow(QMainWindow):
 
     def clear_tasks(self):
         self.task_tbl.clear()
+        self.task_list.clear()
 
     def status_message(self, level: InfoLevel, txt: str, timespan: int):
         if level == InfoLevel.WARNING:
@@ -286,15 +286,6 @@ class Ui_MainWindow(QMainWindow):
             stylesheet = 'color: #db0000'
         self.statusBar().setStyleSheet(stylesheet)
         self.statusBar().showMessage(txt, timespan)
-
-    def update_progress(self, progress):
-        int_val = int(round(progress))
-        item = self.lw_urls.item(self.completed_count)
-        item.set_progress(int_val)
-
-    def completed_one(self):
-        self.completed_count += 1
-        print('Finished Downloading {}'.format(self.completed_count))
 
     def freeze_ui(self):
         self.btn_download.setEnabled(False)
@@ -316,12 +307,16 @@ class Ui_MainWindow(QMainWindow):
         self.cb_subtitle.setEnabled(True)
         self.cb_override.setEnabled(True)
 
+    def update_progress(self, progress, url):
+        int_val = int(round(progress))
+        item = self.task_tbl.cellWidget(self.task_list[url], 3)
+        item.setValue(int_val)
+
     def cleanup(self):
         """
         全部下载任务完成以后的清理工作
         :return:
         """
-        self.completed_count = 0
         self.unfreeze_ui()
 
     def tasks_finished(self):
@@ -341,11 +336,14 @@ class Ui_MainWindow(QMainWindow):
             self.status_message(InfoLevel.ERROR, "指定的保存路径不存在", 2000)
             return
 
+        for i in range(self.task_tbl.rowCount()):
+            url = self.task_tbl.item(i, 2).text()
+            url_list.append(url)
+
         cores = self.spin_threads.value()
 
         self.download_thread = DownloaderThread(url_list, save_folder, cores)
         self.download_thread.progressChanged.connect(self.update_progress)
-        self.download_thread.finishedOne.connect(self.completed_one)
         self.download_thread.finished.connect(self.tasks_finished)
 
         self.download_thread.start()

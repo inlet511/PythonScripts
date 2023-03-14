@@ -145,11 +145,6 @@ class Ui_MainWindow(QMainWindow):
 
         main_layout.addWidget(self.group_task_table)
 
-        # 临时测试用
-        self.add_task(url='https://www.youtube.com/shorts/ThNT2hwiRO4')
-        self.add_task(url='https://www.youtube.com/shorts/lJEPiyAIrYY')
-        self.add_task(url='https://www.youtube.com/shorts/lFYfM7Ows0A')
-
         # 保存位置行
         groupBox_3 = QtWidgets.QGroupBox()
         groupBox_3.setTitle("保存路径")
@@ -241,7 +236,7 @@ class Ui_MainWindow(QMainWindow):
         if new_folder != "" and os.path.exists(new_folder):
             self.le_save_folder.setText(new_folder)
 
-    def _url_in_list(table_widget: QTableWidget, url):
+    def _url_in_list(self, table_widget: QTableWidget, url):
         for i in range(table_widget.rowCount()):
             if table_widget.item(i, 2) == url:
                 return True

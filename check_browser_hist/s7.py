@@ -1,6 +1,7 @@
 import requests
 import time
 
+#使用普通函数顺序下载，效率比较低
 def downloadImg(url):
     file_name = url.split('/')[-1]
     print(f"下载图片{file_name}")

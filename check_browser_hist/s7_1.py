@@ -1,6 +1,8 @@
 import asyncio
 import aiohttp
 
+# 使用异步改进下载速度
+
 async def downloadImg(session, url):
     file_name = url.split('/')[-1]
     print(f"下载图片{file_name}")

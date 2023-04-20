@@ -145,7 +145,6 @@ class Ui_MainWindow(QMainWindow):
 
         main_layout.addWidget(self.group_task_table)
 
-
         # 保存位置行
         groupBox_3 = QtWidgets.QGroupBox()
         groupBox_3.setTitle("保存路径")
@@ -237,9 +236,10 @@ class Ui_MainWindow(QMainWindow):
         if new_folder != "" and os.path.exists(new_folder):
             self.le_save_folder.setText(new_folder)
 
-    def url_in_list(self, url):
-        if url in self.task_list.keys():
-            return True
+    def _url_in_list(self, table_widget: QTableWidget, url):
+        for i in range(table_widget.rowCount()):
+            if table_widget.item(i, 2) == url:
+                return True
         return False
 
     def cb_fill_title_size(self, data: dict, rowNumber: int):

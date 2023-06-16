@@ -55,7 +55,13 @@ class AutoLabel(object):
         img = cv2.imread(image_path)
         height,width,channels = img.shape
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        ret, thresh = cv2.threshold(gray, 120, 255, cv2.THRESH_BINARY_INV)
+        ret, thresh = cv2.threshold(gray, 100, 255, cv2.THRESH_BINARY_INV)
+
+        #加入中值滤波，过滤掉杂色
+        thresh = cv2.medianBlur(thresh, 9)
+
+        # cv2.imshow("binary",thresh)
+        # cv2.waitKey(0)
 
         # 查找轮廓
         contours, hierarchy = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)

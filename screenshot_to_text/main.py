@@ -52,26 +52,28 @@ def recognize_numbers():
     # 使用霍夫线变换检测直线
     lines = cv2.HoughLinesP(edges, 1, np.pi / 180, threshold=LineDetectionThreshold, minLineLength=MinLineLength, maxLineGap=MinLineGap)
 
-    # 将检测到的线条在图像上标记为白色（255）
-    for line in lines:
-        x1, y1, x2, y2 = line[0]
-        cv2.line(image, (x1, y1), (x2, y2), (255, 255, 255), LineThickness)
+    # 如果线条不为空对象
+    if not lines is None:
+        # 将检测到的线条在图像上标记为白色（255）
+        for line in lines:
+            x1, y1, x2, y2 = line[0]
+            cv2.line(image, (x1, y1), (x2, y2), (255, 255, 255), LineThickness)
 
     # 将标记了线条的图像转换为灰度
-    gray_image_with_removed_lines = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
-    cv2.imshow("gray_image_with_removed_lines", gray_image_with_removed_lines)
+    cv2.imshow("removed_lines", image)
     cv2.waitKey()
     cv2.destroyAllWindows()
 
     # 使用Tesseract OCR进行数字识别
-    result = pytesseract.image_to_string(gray_image_with_removed_lines, config='--psm 6', lang='eng').strip()
+    result = pytesseract.image_to_string(image, config='--psm 6', lang='eng').strip()
     # 去掉常见的杂乱符号
     clean_result = remove_chars(result,CleanFilter)
     print(clean_result)
 
     #为粘贴到excel做准备，用制表符分割
-    toclipboard = re.sub(r' ', r'\t', clean_result)
+    toclipboard = re.sub(r'( )+', r'\t', clean_result)
     pyperclip.copy(toclipboard)
 
 

@@ -1,0 +1,32 @@
+Language="VBSCRIPT"
+
+Sub CATMain()
+
+Set document = CATIA.ActiveDocument
+
+Set product = document.Product
+
+Set products = product.Products
+
+Set part1 = products.Item("Part1.1")
+
+Set move1 = part1.Move.MovableObject
+
+Dim transformMatrix(11)
+
+'transformMatrix 前9行是RotationMatrix, 后3个是translateMatrix
+transformMatrix(0) = 1.000000
+transformMatrix(1) = 0.000000
+transformMatrix(2) = 0.000000
+transformMatrix(3) = 0.000000
+transformMatrix(4) = 0.999979
+transformMatrix(5) = -0.006542
+transformMatrix(6) = 0.000000
+transformMatrix(7) = 0.006542
+transformMatrix(8) = 0.999979
+transformMatrix(9) = 10.000000
+transformMatrix(10) = 0.000000
+transformMatrix(11) = 20.000000
+move1.Apply transformMatrix
+
+End Sub
